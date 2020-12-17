@@ -67,7 +67,7 @@ def get_sitemap():
 
             listoflists.append(result)
 
-        with open("firms_and_url.txt", "r") as r:
+        with open("firms_and_urls_part1.txt", "r") as r:
             name_and_urls = r.readlines()
             parent_folder_location = r'E:\test_pdfs'
             if not os.path.exists(parent_folder_location): os.mkdir(parent_folder_location)
@@ -79,8 +79,8 @@ def get_sitemap():
                         if not os.path.exists(path): os.makedirs(path)
 
                 for url_in_urls in tqdm(urls_per_brand):
-                    print(url_in_urls)
-                    print(path)
+                    # print(url_in_urls)
+                    # print(path)
                     url = url_in_urls.strip('\n')
                     try:
                         response = requests.get(url)
@@ -90,14 +90,12 @@ def get_sitemap():
                                 # Name the pdf files using the last portion of each link which are unique in this case
                                 filename = os.path.join(path, link['href'].split('/')[-1])
                                 filename = filename.strip('\n')
-                                if not "cv" or "affidavit" in filename:
-                                    with open(filename, 'wb') as file:
-                                        if requests.get(urljoin(url, link['href'])).status_code == 200:
-                                            file.write(requests.get(urljoin(url, link['href'])).content)
-                                        else:
-                                            pass
-                                else:
-                                    print(filename)
+                                if "cv" not in filename and "affidavit" not in filename:
+                                        with open(filename, 'wb') as file:
+                                            if requests.get(urljoin(url, link['href'])).status_code == 200:
+                                                file.write(requests.get(urljoin(url, link['href'])).content)
+                                            else:
+                                                pass
                         except TypeError:
                             continue
                     except OSError or RuntimeError:
