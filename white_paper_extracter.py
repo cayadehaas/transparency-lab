@@ -12,7 +12,7 @@ def title_searcher():
     non_white_paper_folder_location = r'pdfs_consultancy_firms/NON_WHITEPAPERS/'
     if not os.path.exists(non_white_paper_folder_location): os.mkdir(non_white_paper_folder_location)
 
-    white_paper = ['whitepaper', 'White Paper', 'Whitepaper', 'White paper', 'white-paper', 'white_paper', 'White_paper', 'White_Paper']
+    white_paper = ['whitepaper', 'White Paper', 'Whitepaper', 'White paper', 'white-paper', 'white_paper', 'White_paper', 'White_Paper', 'white paper']
     terms = ['affidavit', 'applicant', 'confidential', 'businessman', 'disbursement', 'retainer']
 
     for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/pdfs_consultancy_firms',
@@ -29,6 +29,7 @@ def title_searcher():
                           path + '/' + filename)
             else:
                 try:
+                    #if white paper in text:
                     pdf = open(root + '/' + filename, 'rb')
                     file_reader = PyPDF2.PdfFileReader(pdf)
 
@@ -36,7 +37,7 @@ def title_searcher():
                         pageObj = file_reader.getPage(i)
                         text = pageObj.extractText()
 
-                        if any(x in filename for x in white_paper):
+                        if any(x in text for x in white_paper):
                             firm = directory[-1]
                             path = os.path.join(white_paper_folder_location, firm)
                             if not os.path.exists(path): os.makedirs(path)
@@ -54,7 +55,7 @@ def title_searcher():
 
                     text = textract.process('pdfs_consultancy_firms/' + directory[-1] + '/' + filename, method='pdfminer')
                     readable_text = str(text)
-                    if any(x in filename for x in white_paper):
+                    if any(x in readable_text for x in white_paper):
                         firm = directory[-1]
                         path = os.path.join(white_paper_folder_location, firm)
                         if not os.path.exists(path): os.makedirs(path)
