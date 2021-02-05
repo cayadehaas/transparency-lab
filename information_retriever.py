@@ -12,7 +12,7 @@ import glob
 with open('white_papers.csv', 'w', newline='') as file:
     image_counter = 0
     writer = csv.writer(file)
-    writer.writerow(["BRANDNAME", "URL", "FILENAME", "TITLE", "AUTHORS", "NBR. OF PAGES", "NBR. OF CHARACTERS", "NBR. OF IMAGES", "NBR. OF NUMBERS"])
+    writer.writerow(["BRANDNAME", "URL", "FILENAME", "TITLE", "AUTHORS", "NBR. OF PAGES", "NBR. OF CHARACTERS", "USE OF IMAGES", "NBR. OF IMAGES", "NBR. OF NUMBERS"])
 
     for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/pdfs_consultancy_firms/WHITEPAPERS',
                                  topdown=False):
@@ -39,6 +39,10 @@ with open('white_papers.csv', 'w', newline='') as file:
                             xObject = page0['/Resources']['/XObject'].getObject()
                             for obj in xObject:
                                 if xObject[obj]['/Subtype'] == '/Image':
+                                    use_of_images = 'YES'
+                                    image_counter += 1
+                                if xObject[obj]['/Subtype'] == '/Form':
+                                    use_of_images = 'YES'
                                     image_counter += 1
                     IMAGES = image_counter
 
@@ -46,7 +50,8 @@ with open('white_papers.csv', 'w', newline='') as file:
                     rawText = parser.from_file(root + '/' + file)
 
                     clean_text = rawText['content'].replace('\n', '')
-                    NUMBERS = sum(c.isdigit() for c in clean_text)
+                    terms = clean_text.split(' ')
+                    NUMBERS = sum(c.isdigit() for c in terms)
 
                     try:
                         list_of_nr = rawText['metadata']['pdf:charsPerPage']
@@ -65,7 +70,7 @@ with open('white_papers.csv', 'w', newline='') as file:
                             BRANDNAME = directory[7]
                             URL = firm_name[-1].strip('\n')
                             print(file, BRANDNAME, URL, nr_of_pages, nr_of_characters, IMAGES, NUMBERS)
-                            writer.writerow([BRANDNAME, URL, FILENAME, TITLE, AUTHORS, nr_of_pages, nr_of_characters, IMAGES, NUMBERS])
+                            writer.writerow([BRANDNAME, URL, FILENAME, TITLE, AUTHORS, nr_of_pages, nr_of_characters, use_of_images, IMAGES, NUMBERS])
                     except:
                         continue
 
