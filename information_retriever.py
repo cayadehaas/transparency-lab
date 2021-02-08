@@ -7,6 +7,7 @@ import os
 from PyPDF2 import PdfFileReader
 import pdftitle
 import glob
+import re
 # brandname, url, title , authors, nbr of pages, nbr of words, nbr of illustrations, nbr of graphs, nbr of numbers/percentages
 
 with open('white_papers.csv', 'w', newline='') as file:
@@ -49,9 +50,20 @@ with open('white_papers.csv', 'w', newline='') as file:
                     nr_of_characters = 0
                     rawText = parser.from_file(root + '/' + file)
 
+                    n1 = ' [0-9]+ years'  # 50 years
+                    n2 = ' [1-2][0-9][0-9][0-9] '  # 2020
+                    n3 = '[0-9]+ percent'  # 15 percent
+                    n4 = '[0-9]+\%'  # 97%
+                    n5 = '[0-9]+\.[0-9]+\%'  # 99.5%
+                    n6 = '\$[0-9]+'  # $12
+                    n7 = '[0-9]+\.[0-9]+ +[a-z]+'  # 1.1 billion
+                    n8 = '[0-9]+\,[0-9]+ +[a-z]+'  # 5,000 people
+                    n9 = '[0-9]+\.[0-9]+ +[a-z]+'  # 5.000 people
+                    n10 = ' [0-9]+ +[a-z]+ '  # 15 respondents
+
                     clean_text = rawText['content'].replace('\n', '')
-                    terms = clean_text.split(' ')
-                    NUMBERS = sum(c.isdigit() for c in terms)
+                    number_list = re.compile("(%s|%s|%s|%s|%s|%s|%s|%s|%s|%s)" % (n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)).findall(clean_text)
+                    NUMBERS = len(number_list)
 
                     try:
                         list_of_nr = rawText['metadata']['pdf:charsPerPage']
