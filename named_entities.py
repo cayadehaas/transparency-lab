@@ -17,36 +17,38 @@ from pprint import pprint
 import spacy
 from spacy import displacy
 from collections import Counter
-nlp = spacy.load('/Users/cayadehaas/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm/en_core_web_sm-3.0.0')
+from nltk.chunk import ne_chunk
 
+nlp = spacy.load('/Users/cayadehaas/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm/en_core_web_sm-3.0.0')
+result = []
+counter = []
 for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/more_whitepapers', topdown=False):
     directory = root.split('/')
     english_stopwords = stopwords.words('english')
     for entry in files:
         pdf = open('more_whitepapers/' + entry, 'rb')
         rawText = parser.from_file('more_whitepapers/' + entry)
-        try:
-            rawList = rawText['content'].splitlines()
-            while '' in rawList: rawList.remove('')
-            while ' ' in rawList: rawList.remove(' ')
-            while '\t' in rawList: rawList.remove('\t')
-            text = ''.join(rawList)
-            breakpoint()
-            text = text.lower()
-            tokenized_text = nltk.word_tokenize(text)
-            doc = nlp(text)
-            pprint([(X.text, X.label_) for X in doc.ents])
+        rawList = rawText['content'].splitlines()
+        while '' in rawList: rawList.remove('')
+        while ' ' in rawList: rawList.remove(' ')
+        while '\t' in rawList: rawList.remove('\t')
+        text = ''.join(rawList)
+        tokenized_text = nltk.word_tokenize(text)
+        doc = nlp(text)
+        result.append([(X.text, X.label_) for X in doc.ents])
+        labels = [x.label_ for x in doc.ents]
+        counter.append(Counter(labels))
 
-            # part_of_speech = nltk.pos_tag(tokenized_text)
-            # pattern = 'NP: {<DT>?<JJ>*<NN>}'
-            # cp = nltk.RegexpParser(pattern)
-            # cs = cp.parse(part_of_speech)
-            # print(cs)
-            # iob_tagged = tree2conlltags(cs)
-            # pprint(iob_tagged)
+df = pd.DataFrame(zip(result, counter), columns=['named entity', 'counter'])
+# Create a Pandas Excel writer using XlsxWriter as the engine.
 
-            # ne_tree = nltk.ne_chunk(pos_tag(word_tokenize(ex)))
-            # print(ne_tree)
-            breakpoint()
-        except:
-            continue
+writer = pd.ExcelWriter('named_entities_whitepapers.xlsx', engine='xlsxwriter')
+# Convert the dataframe to an XlsxWriter Excel object
+df.to_excel(writer, sheet_name='Sheet1', index=False)
+
+# Close the Pandas Excel writer and output the Excel file.
+writer.save()
+
+
+
+
