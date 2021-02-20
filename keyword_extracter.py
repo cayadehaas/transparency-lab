@@ -9,14 +9,16 @@ import string
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from sklearn.feature_extraction.text import TfidfTransformer
 import pandas as pd
+
+
 def get_text():
     list_of_lists = []
-    for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/selectie_pdfs', topdown=False):
+    for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/more_whitepapers', topdown=False):
         directory = root.split('/')
         english_stopwords = stopwords.words('english')
         for entry in files:
-            pdf = open('selectie_pdfs/' + entry, 'rb')
-            rawText = parser.from_file('selectie_pdfs/' + entry)
+            pdf = open('more_whitepapers/' + entry, 'rb')
+            rawText = parser.from_file('more_whitepapers/' + entry)
             try:
                 rawList = rawText['content'].splitlines()
                 while '' in rawList: rawList.remove('')
@@ -39,8 +41,8 @@ def get_text():
             for token in cleaned_messy_sentence:
                 if token not in english_stopwords:
                     without_stopwords.append(token)
-
             sentences = TreebankWordDetokenizer().detokenize(without_stopwords)
+            breakpoint()
             list_of_lists.append(sentences)
     return entry, list_of_lists
 
@@ -121,7 +123,7 @@ def keywords_extracter(entry, flat_list):
     df = pd.DataFrame(zip(flat_list, results), columns=['doc', 'keywords'])
     # Create a Pandas Excel writer using XlsxWriter as the engine.
 
-    writer = pd.ExcelWriter('keywords.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter('keywords_whitepapers.xlsx', engine='xlsxwriter')
 
     # Convert the dataframe to an XlsxWriter Excel object.
     df.to_excel(writer, sheet_name='Sheet1', index=False)
