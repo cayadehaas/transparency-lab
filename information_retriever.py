@@ -13,7 +13,7 @@ import re
 with open('white_papers.csv', 'w', newline='') as file:
     image_counter = 0
     writer = csv.writer(file)
-    writer.writerow(["BRANDNAME", "URL", "FILENAME", "TITLE", "AUTHORS", "NBR. OF PAGES", "NBR. OF CHARACTERS", "USE OF IMAGES", "NBR. OF IMAGES", "NBR. OF NUMBERS"])
+    writer.writerow(["BRANDNAME", "URL", "FILENAME", "TITLE", "AUTHORS", "EMAIL", "NBR. OF PAGES", "NBR. OF CHARACTERS", "USE OF IMAGES", "NBR. OF IMAGES", "NBR. OF NUMBERS"])
 
     for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/pdfs_consultancy_firms/WHITEPAPERS',
                                  topdown=False):
@@ -62,7 +62,21 @@ with open('white_papers.csv', 'w', newline='') as file:
                     n10 = ' [0-9]+ +[a-z]+ '  # 15 respondents
 
                     clean_text = rawText['content'].replace('\n', '')
-                    number_list = re.compile("(%s|%s|%s|%s|%s|%s|%s|%s|%s|%s)" % (n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)).findall(clean_text)
+                    new_sentences = re.sub(r'([a-z])([A-Z])', r'\1 \2',
+                                           clean_text)  # adds whitespace after between small and captial letter
+                    good_sentences = re.sub(r'(?<=[.,?!%:])(?=[^\s])', r' ',
+                                            new_sentences)  # adds whitespace after . and ,
+                    normal_sentences = re.sub(r'\\xa0', r' ', good_sentences)  # changes \xa0 to whitespace
+                    great_sentences = re.sub(r'[-]', r'', normal_sentences)
+                    free_sentences = re.sub(r'([0-9])([a-z|A-Z])', r'\1 \2',
+                                            great_sentences)  # adds whitespace between number and letters
+                    links = re.sub(r"((www\.) ([a-z]+\.) (com))", r" \2\3\4 ",
+                                   free_sentences)  # remove space between link
+                    links2 = re.sub(r"(([A-Za-z]+@[a-z]+\.) (com))", r" \2\3 ", links)  # remove space between link
+
+                    number_list = re.compile("(%s|%s|%s|%s|%s|%s|%s|%s|%s|%s)" % (n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)).findall(links2)
+                    email_addresses = re.compile("(%s)" % ('[a-z]+@[a-z]+\.com')).findall(str(links2))
+
                     NUMBERS = len(number_list)
 
                     try:
@@ -82,7 +96,7 @@ with open('white_papers.csv', 'w', newline='') as file:
                             BRANDNAME = directory[7]
                             URL = firm_name[-1].strip('\n')
                             print(file, BRANDNAME, URL, nr_of_pages, nr_of_characters, IMAGES, NUMBERS)
-                            writer.writerow([BRANDNAME, URL, FILENAME, TITLE, AUTHORS, nr_of_pages, nr_of_characters, use_of_images, IMAGES, NUMBERS])
+                            writer.writerow([BRANDNAME, URL, FILENAME, TITLE, AUTHORS, email_addresses, nr_of_pages, nr_of_characters, use_of_images, IMAGES, NUMBERS])
                     except:
                         continue
 
