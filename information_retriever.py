@@ -15,22 +15,22 @@ with open('white_papers.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["BRANDNAME", "URL", "FILENAME", "TITLE", "AUTHORS", "EMAIL", "NBR. OF PAGES", "NBR. OF CHARACTERS", "USE OF IMAGES", "NBR. OF IMAGES", "NBR. OF NUMBERS"])
 
-    for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/pdfs_consultancy_firms/WHITEPAPERS',
+    for root, dirs, files in os.walk('/Users/cayadehaas/PycharmProjects/Transparency-Lab/pdfs_consultancy_firms/WHITEPAPERS/',
                                  topdown=False):
         directory = root.split('/')
-
         f = open("firms_and_url.txt", "r")
         firms = f.readlines()
         for firm in firms:
-            for file in files:
+            for entry in files:
+                print(entry, directory)
                 firm_name = firm.split(',')
-                if '.pdf' in file:
-                    with open(root + "/" + file, "rb") as f:
-                        FILENAME = file
+                if '.pdf' in entry:
+                    with open(root + "/" + entry, "rb") as f:
+                        FILENAME = entry
                         pdf = pdftotext.PDF(f)
-                        nr_of_pages = len(pdf)
+                    nr_of_pages = len(pdf)
 
-                    pdf_toread = PdfFileReader(open(root + "/" + file, "rb"))
+                    pdf_toread = PdfFileReader(open(root + "/" + entry, "rb"))
                     pdf_info = pdf_toread.getDocumentInfo()
                     AUTHORS = pdf_info.author
                     TITLE = pdf_info.title
@@ -48,7 +48,7 @@ with open('white_papers.csv', 'w', newline='') as file:
                     IMAGES = image_counter
 
                     nr_of_characters = 0
-                    rawText = parser.from_file(root + '/' + file)
+                    rawText = parser.from_file(root + '/' + entry)
 
                     n1 = ' [0-9]+ years'  # 50 years
                     n2 = ' [1-2][0-9][0-9][0-9] '  # 2020
@@ -85,20 +85,18 @@ with open('white_papers.csv', 'w', newline='') as file:
                             nr_of_characters += int(nr_words_per_page)
                         nr_of_characters = nr_of_characters
 
-
-
                         rawList = rawText['content'].splitlines()
                         while '' in rawList: rawList.remove('')
                     except:
                         continue
-                    try:
-                        if directory[7] == firm_name[0]:
-                            BRANDNAME = directory[7]
-                            URL = firm_name[-1].strip('\n')
-                            print(file, BRANDNAME, URL, nr_of_pages, nr_of_characters, IMAGES, NUMBERS)
-                            writer.writerow([BRANDNAME, URL, FILENAME, TITLE, AUTHORS, email_addresses, nr_of_pages, nr_of_characters, use_of_images, IMAGES, NUMBERS])
-                    except:
-                        continue
+
+                    if directory[7] == firm_name[0]:
+                        BRANDNAME = directory[7]
+                        URL = firm_name[-1].strip('\n')
+                        print(entry, BRANDNAME, URL, nr_of_pages, nr_of_characters, IMAGES, NUMBERS)
+                        writer.writerow(
+                            [BRANDNAME, URL, FILENAME, TITLE, AUTHORS, email_addresses, nr_of_pages, nr_of_characters,
+                         use_of_images, IMAGES, NUMBERS])
 
             image_counter = 0
 
