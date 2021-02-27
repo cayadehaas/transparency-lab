@@ -114,11 +114,13 @@ with open('verhaallijn_sentiment_analysis.csv', 'w', newline='') as file:
             new_sentences = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)  # adds whitespace after between small and captial letter
             good_sentences = re.sub(r'(?<=[.,?!%:])(?=[^\s])', r' ', new_sentences) #adds whitespace after . and ,
             normal_sentences = re.sub(r'\\xa0', r' ', good_sentences) #changes \xa0 to whitespace
-            great_sentences = re.sub(r'[-]', r'', normal_sentences)
+            best_sentences = re.sub(r'% 20', r'', normal_sentences) #changes %20 to whitespace
+            the_best_sentences = re.sub(r'% 40', r'', best_sentences) #changes %40 to whitespace
+            great_sentences = re.sub(r'[-]', r'', the_best_sentences)
             free_sentences = re.sub(r'([0-9])([a-z|A-Z])', r'\1 \2', great_sentences) #adds whitespace between number and letters
             links = re.sub(r"((www\.) ([a-z]+\.) (com))", r" \2\3\4 ", free_sentences) #remove space between link
             links2 = re.sub(r"(([A-Za-z]+@[a-z]+\.) (com))", r" \2\3 ", links)  # remove space between link
-
+            breakpoint()
             sentences = nltk.sent_tokenize(links2)
             percentage_list = []
             vraagteken_list = []
