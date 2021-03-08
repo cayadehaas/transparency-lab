@@ -93,7 +93,7 @@ with open('information_per_page.csv', 'w', newline='') as f:
             '/Users/cayadehaas/PycharmProjects/Transparency-Lab/whitepapers_test',
             topdown=False):
         directory = root.split('/')
-        for file in files:
+        for file in tqdm(files):
             print(file)
             #use tika parser to clearly get sentences
             #use pdffilereader to extract text from certain page
