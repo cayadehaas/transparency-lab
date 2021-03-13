@@ -18,9 +18,17 @@ URL = "https://www.artprice.com/artist/18956/agnes-martin/lots/pasts/1/painting"
 
 estimate_1 = "€ [0-9]+,[0-9]+,[0-9]+ - € [0-9]+,[0-9]+,[0-9]+"  # € 1,483,619 - € 2,060,582
 estimate_2 = "€ [0-9]+,[0-9]+ - € [0-9]+,[0-9]+"                #  € 16,909 - € 33,819 // € 16,90 - € 33,81
+estimate_3 = "€ [0-9][0-9][0-9] - € [0-9][0-9][0-9]"             # € 406 - € 580
+estimate_4 = "€ [0-9][0-9] - € [0-9][0-9]+"                      # 40 - 50
+estimate_5 = "€ [0-9]+ - € [0-9]+,[0-9]+"                        # € 906 - € 1,580
+estimate_6 = "€ [0-9]+,[0-9]+,[0-9]+"                           # € 1,483,619
+estimate_7 = "€ [0-9]+"                                          # € 452
+estimate_8 = "€ [0-9]+,[0-9]+"                                  # € 16,909
+estimate_9 = "€ [0-9],[0-9]+"
 
 hammer_price_1 = "€ [0-9]+,[0-9]+,[0-9]+"   # € 1,648,466
 hammer_price_2 = "€ [0-9]+,[0-9]+"          # € 212,195
+hammer_price_3 = "€ [0-9]+"                 # € 452
 
 date = '[0-9][0-9] [A-Z][a-z][a-z] [0-9]+' # 07 Dec 2020
 
@@ -53,30 +61,48 @@ def main():
                             TITLE = title.replace('\n', '').strip()
 
                         data = painting.find_all("div", {"class": "lot-datas-block"})
+                        content = str(data)
                         DATE = re.compile("(%s)" % (date)).findall(str(data))
                         DATE = (", ".join(DATE))
-                        ESTIMATE = re.compile("(%s|%s)" % (estimate_1, estimate_2)).findall(str(data))
-                        ESTIMATE = (", ".join(ESTIMATE))
 
-                        # get the hammer price // not sold // not listed
-                        if re.compile("(%s|%s)" % (hammer_price_1, hammer_price_2)).findall(str(data)) == 4:
-                            HAMMER_PRICE = re.compile("(%s|%s)" % (hammer_price_1, hammer_price_2)).findall(str(data))
-                            HAMMER_PRICE = HAMMER_PRICE[-1]
+                        # Estimate is € 1,483,619 - € 2,060,582, or  € 483,619 - 343,000, or € 483 - 343 or empty
+                        if 'Estimate' in content:
+                            if len(re.compile("(%s|%s|%s|%s|%s)" % (estimate_1, estimate_2, estimate_3, estimate_4, estimate_5)).findall(str(data))) != 0:
+                                ESTIMATE = re.compile("(%s|%s|%s|%s|%s)" % (estimate_1, estimate_2, estimate_3, estimate_4, estimate_5)).findall(str(data))
+                                ESTIMATE = (", ".join(ESTIMATE))
 
-                            print([ARTIST, TITLE, DATE, HAMMER_PRICE, ESTIMATE])
-                            writer.writerow([ARTIST, TITLE, DATE, HAMMER_PRICE, ESTIMATE])
+                            # Estimate is € 1,483,619, € 1,483, € 134 or empty
+                            elif len(re.compile("(%s|%s|%s|%s)" % (estimate_6, estimate_7, estimate_8, estimate_9)).findall(str(data))) != 0:
+                                ESTIMATE = re.compile("(%s|%s|%s|%s)" % (estimate_6, estimate_7, estimate_8, estimate_9)).findall(str(data))
+                                if len(ESTIMATE) >= 1:          # Can only have estimate
+                                    ESTIMATE = ESTIMATE[0]
+                                else:
+                                    ESTIMATE = ''
+                        else:
+                            ESTIMATE = ''
+
+                        # Hammer price is € 1,483,619, € 1,483, € 134 or not sold/not listed
+                        if 'Hammer' in content:
+                            HAMMER_PRICE = re.compile(
+                                    "(%s|%s|%s)" % (hammer_price_1, hammer_price_2, hammer_price_3)).findall(str(data))
+                            if len(HAMMER_PRICE) >= 1:  # can only have hammer price
+                                HAMMER_PRICE = HAMMER_PRICE[-1]
+
+                                print([ARTIST, TITLE, DATE, HAMMER_PRICE, ESTIMATE])
+                                writer.writerow([ARTIST, TITLE, DATE, HAMMER_PRICE, ESTIMATE])
 
                         else:
-                            if re.compile("Not sold").findall(str(data)) != 0:
+                            if len(re.compile("Not sold").findall(str(data))) >= 1:
                                 NOT_HAMMER_PRICE = 'Not sold'
-                            elif re.compile("Not listed").findall(str(data)) != 0:
+                            elif len(re.compile("Not listed").findall(str(data))) >= 1:
                                 NOT_HAMMER_PRICE = 'Not listed'
                             else:
-                                NOT_HAMMER_PRICE = "-"
+                                NOT_HAMMER_PRICE = ''
 
                             print([ARTIST, TITLE, DATE, NOT_HAMMER_PRICE, ESTIMATE])
                             writer.writerow([ARTIST, TITLE, DATE, NOT_HAMMER_PRICE, ESTIMATE])
-                    sleep(10)
+
+                    sleep(6)
                     try:
                         driver.execute_script("return arguments[0].scrollIntoView(true);",
                                               WebDriverWait(driver, 20).until(
