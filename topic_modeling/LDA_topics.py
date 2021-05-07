@@ -1,7 +1,9 @@
+import PyPDF2
 import nltk
 import os
 nltk.download('stopwords')
 nltk.download('wordnet')
+from PyPDF2 import utils
 from PyPDF2 import PdfFileReader
 import re
 import csv
@@ -13,7 +15,6 @@ from tqdm import tqdm
 import gensim
 import gensim.corpora as corpora
 from gensim.utils import simple_preprocess
-from gensim.models import CoherenceModel
 from tika import parser
 # spacy for lemmatization
 import spacy
@@ -26,6 +27,7 @@ from nltk.stem.porter import *
 import numpy as np
 from gensim import corpora, models
 from gensim.models import CoherenceModel
+
 np.random.seed(2018)
 
 stemmer = SnowballStemmer('english')
@@ -59,7 +61,7 @@ def pdf2text(pdf):
             page = pdf.getPage(i)
             text = text + page.extractText()
             text = text.replace('\n', ' ')
-            text= text.lower()
+            text = text.lower()
 
             n_sentences = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
             g_sentences = re.sub(r'(?<=[.,?!%:])(?=[^\s])', r' ', n_sentences)  # adds whitespace after . and , 
@@ -69,12 +71,14 @@ def pdf2text(pdf):
             gr_sentences = re.sub(r'[-]', r'', t_best_sentences)
             grd_sentences = re.sub(r'Š', r' ', gr_sentences)
             grdf_sentences = re.sub(r'™', r"'", grd_sentences)
-            fr_sentences = re.sub(r'([0-9])([a-zA-Z])', r'\1 \2', grdf_sentences)  # adds whitespace between number and letters 
+            fr_sentences = re.sub(r'([0-9])([a-zA-Z])', r'\1 \2',
+                                  grdf_sentences)  # adds whitespace between number and letters 
             li = re.sub(r"((www\.) ([a-z]+\.) (com))", r" \2\3\4 ", fr_sentences)  # remove space between link 
             li2 = re.sub(r"(([A-Za-z]+@[a-z]+\.) (com))", r" \2\3 ", li)
             clean = preprocess(li2)
             listed_text = clean
-    except:
+
+    except utils.PdfReadError:
         listed_text = []
 
 
@@ -103,27 +107,28 @@ def build_corpus_from_dir(dir_path):
     return corpus, brandnames_and_filenames
 
 def make_bigrams(texts):
-    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100)  # higher threshold fewer phrases.
+    bigram = gensim.models.Phrases(texts, min_count=5, threshold=100)  # higher threshold fewer phrases.
     bigram_mod = gensim.models.phrases.Phraser(bigram)
     return [bigram_mod[doc] for doc in texts]
 
 def make_trigrams(texts):
-    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100)  # higher threshold fewer phrases.
+    bigram = gensim.models.Phrases(texts, min_count=5, threshold=100)  # higher threshold fewer phrases.
     bigram_mod = gensim.models.phrases.Phraser(bigram)
-    trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
+    trigram = gensim.models.Phrases(bigram[texts], threshold=100)
     trigram_mod = gensim.models.phrases.Phraser(trigram)
     return [trigram_mod[bigram_mod[doc]] for doc in texts]
 
-def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+def lemmatization(texts, allowed_postags=None):
     """https://spacy.io/api/annotation"""
+    if allowed_postags is None:
+        allowed_postags = ['NOUN', 'ADJ', 'VERB', 'ADV']
     texts_out = []
     for sent in texts:
         doc = nlp(" ".join(sent))
         texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
     return texts_out
 
-
-def compute_coherence_values(corpus, dictionary, k, a, b):
+def get_lda_model(corpus, dictionary, k,a,b):
     lda_model = gensim.models.LdaMulticore(corpus=corpus,
                                            id2word=dictionary,
                                            num_topics=k,
@@ -132,36 +137,39 @@ def compute_coherence_values(corpus, dictionary, k, a, b):
                                            passes=10,
                                            alpha=a,
                                            eta=b)
+    pprint(lda_model.print_topics())
+    return lda_model
+
+def compute_coherence_values(lda_model, corpus, dictionary):
 
     coherence_model_lda = CoherenceModel(model=lda_model, texts=corpus, dictionary=dictionary, coherence='c_v')
+    coherence_lda = coherence_model_lda.get_coherence()
+    print('\nCoherence Score: ', coherence_lda)
+
 
     return coherence_model_lda.get_coherence()
 
 if __name__ == '__main__':
     corpus, brandnames_and_filenames = build_corpus_from_dir(r'F:\pdf_consultancy_firms\CLASSIFIED_PAPERS/Digital transformation')
-    corpus = [x for x in corpus if x != []] #remove empy lists
+    corpus = [x for x in corpus if x != []] #remove empty lists
+    data_words_bigrams = make_bigrams(corpus)
 
-    dictionary = gensim.corpora.Dictionary(corpus)
-    bow_corpus = [dictionary.doc2bow(doc) for doc in corpus]
+    data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
 
-    tfidf = models.TfidfModel(bow_corpus)
-    corpus_tfidf = tfidf[bow_corpus]
+    texts = data_lemmatized
 
-    lda_model_tfidf = gensim.models.LdaMulticore(corpus_tfidf, num_topics=10, id2word=dictionary, passes=2, workers=4)
-    pprint(lda_model_tfidf.print_topics(-1, num_words=40))
-    coherence_model_lda = CoherenceModel(model=lda_model_tfidf, texts=corpus, dictionary=dictionary, coherence='c_v')
+    dictionary = gensim.corpora.Dictionary(data_lemmatized)
+
+    bow_corpus = [dictionary.doc2bow(text) for text in texts]
+
+    #
+    # #TODO: Change parameters after finetuning
+    lda_model = gensim.models.LdaMulticore(bow_corpus, num_topics=10, id2word=dictionary, passes=2, workers=4)
+    pprint(lda_model.print_topics(num_words=40))
+    coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=dictionary, coherence='c_v')
     coherence_lda = coherence_model_lda.get_coherence()
     print('\nCoherence Score: ', coherence_lda)
-    # with open('topic_modeling_LDA.csv', 'w', newline='', encoding='utf-8') as file:
-    #     writer = csv.writer(file)
-    #     writer.writerow(["Topic", "Word"])
-    #     for idx, topic in lda_model_tfidf.print_topics(-1, num_words=40):
-    #         print('Topic: {} Word: {}'.format(idx, topic))
-    #         writer.writerow([idx, topic])
 
-    # pyLDAvis.enable_notebook()
-    # vis = pyLDAvis.sklearn.prepare(lda_model_tfidf, corpus, dictionary)
-    # vis
 
 
 

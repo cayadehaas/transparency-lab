@@ -1,7 +1,9 @@
+import PyPDF2
 import nltk
 import os
 nltk.download('stopwords')
 nltk.download('wordnet')
+from PyPDF2 import utils
 from PyPDF2 import PdfFileReader
 import re
 import csv
@@ -13,7 +15,6 @@ from tqdm import tqdm
 import gensim
 import gensim.corpora as corpora
 from gensim.utils import simple_preprocess
-from gensim.models import CoherenceModel
 from tika import parser
 # spacy for lemmatization
 import spacy
@@ -26,6 +27,7 @@ from nltk.stem.porter import *
 import numpy as np
 from gensim import corpora, models
 from gensim.models import CoherenceModel
+
 np.random.seed(2018)
 
 stemmer = SnowballStemmer('english')
@@ -59,7 +61,7 @@ def pdf2text(pdf):
             page = pdf.getPage(i)
             text = text + page.extractText()
             text = text.replace('\n', ' ')
-            text= text.lower()
+            text = text.lower()
 
             n_sentences = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
             g_sentences = re.sub(r'(?<=[.,?!%:])(?=[^\s])', r' ', n_sentences)  # adds whitespace after . and , 
@@ -69,12 +71,14 @@ def pdf2text(pdf):
             gr_sentences = re.sub(r'[-]', r'', t_best_sentences)
             grd_sentences = re.sub(r'Š', r' ', gr_sentences)
             grdf_sentences = re.sub(r'™', r"'", grd_sentences)
-            fr_sentences = re.sub(r'([0-9])([a-zA-Z])', r'\1 \2', grdf_sentences)  # adds whitespace between number and letters 
+            fr_sentences = re.sub(r'([0-9])([a-zA-Z])', r'\1 \2',
+                                  grdf_sentences)  # adds whitespace between number and letters 
             li = re.sub(r"((www\.) ([a-z]+\.) (com))", r" \2\3\4 ", fr_sentences)  # remove space between link 
             li2 = re.sub(r"(([A-Za-z]+@[a-z]+\.) (com))", r" \2\3 ", li)
             clean = preprocess(li2)
             listed_text = clean
-    except:
+
+    except utils.PdfReadError:
         listed_text = []
 
 
@@ -103,27 +107,28 @@ def build_corpus_from_dir(dir_path):
     return corpus, brandnames_and_filenames
 
 def make_bigrams(texts):
-    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100)  # higher threshold fewer phrases.
+    bigram = gensim.models.Phrases(texts, min_count=5, threshold=100)  # higher threshold fewer phrases.
     bigram_mod = gensim.models.phrases.Phraser(bigram)
     return [bigram_mod[doc] for doc in texts]
 
 def make_trigrams(texts):
-    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100)  # higher threshold fewer phrases.
+    bigram = gensim.models.Phrases(texts, min_count=5, threshold=100)  # higher threshold fewer phrases.
     bigram_mod = gensim.models.phrases.Phraser(bigram)
-    trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
+    trigram = gensim.models.Phrases(bigram[texts], threshold=100)
     trigram_mod = gensim.models.phrases.Phraser(trigram)
     return [trigram_mod[bigram_mod[doc]] for doc in texts]
 
-def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+def lemmatization(texts, allowed_postags=None):
     """https://spacy.io/api/annotation"""
+    if allowed_postags is None:
+        allowed_postags = ['NOUN', 'ADJ', 'VERB', 'ADV']
     texts_out = []
     for sent in texts:
         doc = nlp(" ".join(sent))
         texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
     return texts_out
 
-
-def compute_coherence_values(corpus, dictionary, k, a, b):
+def get_lda_model(corpus, dictionary, k,a,b):
     lda_model = gensim.models.LdaMulticore(corpus=corpus,
                                            id2word=dictionary,
                                            num_topics=k,
@@ -132,36 +137,86 @@ def compute_coherence_values(corpus, dictionary, k, a, b):
                                            passes=10,
                                            alpha=a,
                                            eta=b)
+    pprint(lda_model.print_topics())
+    return lda_model
+
+def compute_coherence_values(lda_model, corpus, dictionary):
 
     coherence_model_lda = CoherenceModel(model=lda_model, texts=corpus, dictionary=dictionary, coherence='c_v')
+    coherence_lda = coherence_model_lda.get_coherence()
+    print('\nCoherence Score: ', coherence_lda)
+
 
     return coherence_model_lda.get_coherence()
 
 if __name__ == '__main__':
     corpus, brandnames_and_filenames = build_corpus_from_dir(r'F:\pdf_consultancy_firms\CLASSIFIED_PAPERS/Digital transformation')
-    corpus = [x for x in corpus if x != []] #remove empy lists
+    data_words_bigrams = make_bigrams(corpus)
+    data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
+    texts = data_lemmatized
+    dictionary = gensim.corpora.Dictionary(data_lemmatized)
+    bow_corpus = [dictionary.doc2bow(text) for text in texts]
 
-    dictionary = gensim.corpora.Dictionary(corpus)
-    bow_corpus = [dictionary.doc2bow(doc) for doc in corpus]
+    # tfidf = models.TfidfModel(bow_corpus)
+    # corpus_tfidf = tfidf[bow_corpus]
+    #TODO: Change parameters after finetuning
+    # lda_model = gensim.models.LdaMulticore(bow_corpus, num_topics=10, id2word=dictionary, passes=2, workers=4)
+    # pprint(lda_model.print_topics())
 
-    tfidf = models.TfidfModel(bow_corpus)
-    corpus_tfidf = tfidf[bow_corpus]
 
-    lda_model_tfidf = gensim.models.LdaMulticore(corpus_tfidf, num_topics=10, id2word=dictionary, passes=2, workers=4)
-    pprint(lda_model_tfidf.print_topics(-1, num_words=40))
-    coherence_model_lda = CoherenceModel(model=lda_model_tfidf, texts=corpus, dictionary=dictionary, coherence='c_v')
-    coherence_lda = coherence_model_lda.get_coherence()
-    print('\nCoherence Score: ', coherence_lda)
-    # with open('topic_modeling_LDA.csv', 'w', newline='', encoding='utf-8') as file:
-    #     writer = csv.writer(file)
-    #     writer.writerow(["Topic", "Word"])
-    #     for idx, topic in lda_model_tfidf.print_topics(-1, num_words=40):
-    #         print('Topic: {} Word: {}'.format(idx, topic))
-    #         writer.writerow([idx, topic])
+    grid = {}
+    grid['Validation_Set'] = {}
+    # Topics range
+    min_topics = 2
+    max_topics = 11
+    step_size = 1
+    topics_range = range(min_topics, max_topics, step_size)
+    # Alpha parameter
+    alpha = list(np.arange(0.01, 1, 0.3))
+    alpha.append('symmetric')
+    alpha.append('asymmetric')
+    # Beta parameter
+    beta = list(np.arange(0.01, 1, 0.3))
+    beta.append('symmetric')
+    # Validation sets
+    num_of_docs = len(bow_corpus)
+    corpus_sets = [  # gensim.utils.ClippedCorpus(corpus, num_of_docs*0.25),
+        # gensim.utils.ClippedCorpus(bow_corpus, int(num_of_docs*0.5)),
+        # gensim.utils.ClippedCorpus(corpus, num_of_docs * 0.75),
+        bow_corpus]
+    corpus_title = ['75% Corpus', '100% Corpus']
+    model_results = {'Validation_Set': [],
+                     'Topics': [],
+                     'Alpha': [],
+                     'Beta': [],
+                     'Coherence': []
+                     }
+    # Can take a long time to run
+    if 1 == 1:
+        pbar = tqdm(total=540)
 
-    # pyLDAvis.enable_notebook()
-    # vis = pyLDAvis.sklearn.prepare(lda_model_tfidf, corpus, dictionary)
-    # vis
+        # iterate through validation corpuses
+        for i in range(len(corpus_sets)):
+            # iterate through number of topics
+            for k in topics_range:
+                # iterate through alpha values
+                for a in alpha:
+                    # iterare through beta values
+                    for b in beta:
+                        # get the coherence score for the given parameters
+                        lda_model = get_lda_model(corpus=corpus_sets[i], dictionary=dictionary, k=k, a=a, b=b)
+                        cv = compute_coherence_values(corpus=corpus, dictionary=dictionary, lda_model=lda_model)
+                        # Save the model results
+                        model_results['Validation_Set'].append(corpus_title[i])
+                        model_results['Topics'].append(k)
+                        model_results['Alpha'].append(a)
+                        model_results['Beta'].append(b)
+                        model_results['Coherence'].append(cv)
+
+                        pbar.update(1)
+        pd.DataFrame(model_results).to_csv('lda_tuning_results_1.csv', index=False)
+        pbar.close()
+
 
 
 
