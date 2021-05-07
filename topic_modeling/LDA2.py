@@ -140,9 +140,9 @@ def get_lda_model(corpus, dictionary, k,a,b):
     pprint(lda_model.print_topics())
     return lda_model
 
-def compute_coherence_values(lda_model, corpus, dictionary):
+def compute_coherence_values(lda_model, texts, dictionary):
 
-    coherence_model_lda = CoherenceModel(model=lda_model, texts=corpus, dictionary=dictionary, coherence='c_v')
+    coherence_model_lda = CoherenceModel(model=lda_model, texts=texts, dictionary=dictionary, coherence='c_v')
     coherence_lda = coherence_model_lda.get_coherence()
     print('\nCoherence Score: ', coherence_lda)
 
@@ -205,7 +205,7 @@ if __name__ == '__main__':
                     for b in beta:
                         # get the coherence score for the given parameters
                         lda_model = get_lda_model(corpus=corpus_sets[i], dictionary=dictionary, k=k, a=a, b=b)
-                        cv = compute_coherence_values(corpus=corpus, dictionary=dictionary, lda_model=lda_model)
+                        cv = compute_coherence_values(texts=data_lemmatized, dictionary=dictionary, lda_model=lda_model)
                         # Save the model results
                         model_results['Validation_Set'].append(corpus_title[i])
                         model_results['Topics'].append(k)
