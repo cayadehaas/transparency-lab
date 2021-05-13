@@ -151,72 +151,86 @@ def compute_coherence_values(lda_model, texts, dictionary):
 
 if __name__ == '__main__':
     corpus, brandnames_and_filenames = build_corpus_from_dir(r'F:\pdf_consultancy_firms\CLASSIFIED_PAPERS/Digital transformation')
+    corpus = [x for x in corpus if x != []] #remove empty lists
+
+    #Bigrams, comment out if you're using trigrams
     data_words_bigrams = make_bigrams(corpus)
     data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
+
+    #Trigrams, comment out if you're using bigrams
+    # data_words_trigrams = make_trigrams(corpus)
+    # data_lemmatized = lemmatization(data_words_trigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
+
     texts = data_lemmatized
     dictionary = gensim.corpora.Dictionary(data_lemmatized)
     bow_corpus = [dictionary.doc2bow(text) for text in texts]
 
     # tfidf = models.TfidfModel(bow_corpus)
     # corpus_tfidf = tfidf[bow_corpus]
-    #TODO: Change parameters after finetuning
-    # lda_model = gensim.models.LdaMulticore(bow_corpus, num_topics=10, id2word=dictionary, passes=2, workers=4)
-    # pprint(lda_model.print_topics())
+    lda_model = gensim.models.LdaMulticore(bow_corpus, num_topics=7, id2word=dictionary, alpha='symmetric', eta=0.9099999999999999, passes=2, workers=4)
+    # pprint(lda_model.print_topics(num_words=50))
 
+    with open('topic_modeling_LDA_bigrams_250_keywords.csv', 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Topic", "Word"])
+        for idx, topic in lda_model.print_topics(-1, num_words=250):
+            print('Topic: {} Word: {}'.format(idx, topic))
+            writer.writerow([idx, topic])
 
-    grid = {}
-    grid['Validation_Set'] = {}
-    # Topics range
-    min_topics = 2
-    max_topics = 11
-    step_size = 1
-    topics_range = range(min_topics, max_topics, step_size)
-    # Alpha parameter
-    alpha = list(np.arange(0.01, 1, 0.3))
-    alpha.append('symmetric')
-    alpha.append('asymmetric')
-    # Beta parameter
-    beta = list(np.arange(0.01, 1, 0.3))
-    beta.append('symmetric')
-    # Validation sets
-    num_of_docs = len(bow_corpus)
-    corpus_sets = [  # gensim.utils.ClippedCorpus(corpus, num_of_docs*0.25),
-        # gensim.utils.ClippedCorpus(bow_corpus, int(num_of_docs*0.5)),
-        # gensim.utils.ClippedCorpus(corpus, num_of_docs * 0.75),
-        bow_corpus]
-    corpus_title = ['75% Corpus', '100% Corpus']
-    model_results = {'Validation_Set': [],
-                     'Topics': [],
-                     'Alpha': [],
-                     'Beta': [],
-                     'Coherence': []
-                     }
-    # Can take a long time to run
-    if 1 == 1:
-        pbar = tqdm(total=540)
-
-        # iterate through validation corpuses
-        for i in range(len(corpus_sets)):
-            # iterate through number of topics
-            for k in topics_range:
-                # iterate through alpha values
-                for a in alpha:
-                    # iterare through beta values
-                    for b in beta:
-                        # get the coherence score for the given parameters
-                        lda_model = get_lda_model(corpus=corpus_sets[i], dictionary=dictionary, k=k, a=a, b=b)
-                        cv = compute_coherence_values(texts=data_lemmatized, dictionary=dictionary, lda_model=lda_model)
-                        # Save the model results
-                        model_results['Validation_Set'].append(corpus_title[i])
-                        model_results['Topics'].append(k)
-                        model_results['Alpha'].append(a)
-                        model_results['Beta'].append(b)
-                        model_results['Coherence'].append(cv)
-
-                        pbar.update(1)
-        pd.DataFrame(model_results).to_csv('lda_tuning_results_1.csv', index=False)
-        pbar.close()
-
-
-
-
+    # Hyperparameter tuning
+    # grid = {}
+    # grid['Validation_Set'] = {}
+    # # Topics range
+    # min_topics = 2
+    # max_topics = 11
+    # step_size = 1
+    # topics_range = range(min_topics, max_topics, step_size)
+    # # Alpha parameter
+    # alpha = list(np.arange(0.01, 1, 0.3))
+    # alpha.append('symmetric')
+    # alpha.append('asymmetric')
+    # # Beta parameter
+    # beta = list(np.arange(0.01, 1, 0.3))
+    # beta.append('symmetric')
+    # # Validation sets
+    # num_of_docs = len(bow_corpus)
+    # corpus_sets = [  # gensim.utils.ClippedCorpus(corpus, num_of_docs*0.25),
+    #     # gensim.utils.ClippedCorpus(bow_corpus, int(num_of_docs*0.5)),
+    #     # gensim.utils.ClippedCorpus(corpus, num_of_docs * 0.75),
+    #     bow_corpus]
+    # corpus_title = ['100% Corpus']
+    # model_results = {'Validation_Set': [],
+    #                  'Topics': [],
+    #                  'Alpha': [],
+    #                  'Beta': [],
+    #                  'Coherence': []
+    #                  }
+    # # Can take a long time to run
+    # if 1 == 1:
+    #     pbar = tqdm(total=540)
+    #
+    #     # iterate through validation corpuses
+    #     for i in range(len(corpus_sets)):
+    #         # iterate through number of topics
+    #         for k in topics_range:
+    #             # iterate through alpha values
+    #             for a in alpha:
+    #                 # iterare through beta values
+    #                 for b in beta:
+    #                     # get the coherence score for the given parameters
+    #                     lda_model = get_lda_model(corpus=corpus_sets[i], dictionary=dictionary, k=k, a=a, b=b)
+    #                     cv = compute_coherence_values(texts=data_lemmatized, dictionary=dictionary, lda_model=lda_model)
+    #                     # Save the model results
+    #                     model_results['Validation_Set'].append(corpus_title[i])
+    #                     model_results['Topics'].append(k)
+    #                     model_results['Alpha'].append(a)
+    #                     model_results['Beta'].append(b)
+    #                     model_results['Coherence'].append(cv)
+    #
+    #                     pbar.update(1)
+    #     pd.DataFrame(model_results).to_csv('lda_tuning_results_1.csv', index=False)
+    #     pbar.close()
+    #
+    #
+    #
+    #
